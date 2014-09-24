@@ -26,29 +26,29 @@ class contacts extends baseclass {
 			$this->contactSubType->staffmember 		= civicrm_api3('ContactType', 'getsingle', array("name" => "Staffmember"));
 			$this->customFields 					= new stdClass();
 			// Additional Information
-			$this->customFields->additionalGroup	= civicrm_api3('CustomGroup', 'getsingle', array("name" => "Additional_Information"));
-			$this->customFields->prins_unid			= civicrm_api3('CustomField', 'getsingle', array("name" => "Prins_UNID", "custom_group_id" => $this->customFields->additionalGroup['id']));
+			$this->customFields->additionalGroup	= civicrm_api3('CustomGroup', 'getsingle', array("name" => "Additional_Data"));
+			$this->customFields->prins_unid			= civicrm_api3('CustomField', 'getsingle', array("name" => "Prins_Unique_ID", "custom_group_id" => $this->customFields->additionalGroup['id']));
 			$this->customFields->prins_shortname	= civicrm_api3('CustomField', 'getsingle', array("name" => "Prins_Shortname", "custom_group_id" => $this->customFields->additionalGroup['id']));
 			$this->customFields->initials			= civicrm_api3('CustomField', 'getsingle', array("name" => "Initials", "custom_group_id" => $this->customFields->additionalGroup['id']));
 			$this->customFields->marital_status		= civicrm_api3('CustomField', 'getsingle', array("name" => "Marital_Status", "custom_group_id" => $this->customFields->additionalGroup['id']));
 			// Bank Information
 			$this->customFields->bankGroup			= civicrm_api3('CustomGroup', 'getsingle', array("name" => "Bank_Information"));
-			$this->customFields->b_number			= civicrm_api3('CustomField', 'getsingle', array("name" => "Bankaccount_number", "custom_group_id" => $this->customFields->bankGroup['id']));
+			$this->customFields->b_number			= civicrm_api3('CustomField', 'getsingle', array("name" => "Bank_Account_Number", "custom_group_id" => $this->customFields->bankGroup['id']));
 			$this->customFields->b_accname			= civicrm_api3('CustomField', 'getsingle', array("name" => "Accountholder_name", "custom_group_id" => $this->customFields->bankGroup['id']));
 			$this->customFields->b_accadd			= civicrm_api3('CustomField', 'getsingle', array("name" => "Accountholder_address", "custom_group_id" => $this->customFields->bankGroup['id']));
 			$this->customFields->b_acczip			= civicrm_api3('CustomField', 'getsingle', array("name" => "Accountholder_postal_code", "custom_group_id" => $this->customFields->bankGroup['id']));
 			$this->customFields->b_acccity			= civicrm_api3('CustomField', 'getsingle', array("name" => "Accountholder_city", "custom_group_id" => $this->customFields->bankGroup['id']));
 			$this->customFields->b_acccountry		= civicrm_api3('CustomField', 'getsingle', array("name" => "Accountholder_country", "custom_group_id" => $this->customFields->bankGroup['id']));
-			$this->customFields->b_iso				= civicrm_api3('CustomField', 'getsingle', array("name" => "Bank_ISO_country_code", "custom_group_id" => $this->customFields->bankGroup['id']));
-			$this->customFields->b_bic				= civicrm_api3('CustomField', 'getsingle', array("name" => "BIC_Swift_code", "custom_group_id" => $this->customFields->bankGroup['id']));
-			$this->customFields->b_iban				= civicrm_api3('CustomField', 'getsingle', array("name" => "IBAN", "custom_group_id" => $this->customFields->bankGroup['id']));
-			$this->customFields->b_name				= civicrm_api3('CustomField', 'getsingle', array("name" => "Bank_name", "custom_group_id" => $this->customFields->bankGroup['id']));
-			$this->customFields->b_city				= civicrm_api3('CustomField', 'getsingle', array("name" => "Bank_city", "custom_group_id" => $this->customFields->bankGroup['id']));
+			$this->customFields->b_iso				= civicrm_api3('CustomField', 'getsingle', array("name" => "Bank_ISO_Country_Code", "custom_group_id" => $this->customFields->bankGroup['id']));
+			$this->customFields->b_bic				= civicrm_api3('CustomField', 'getsingle', array("name" => "BIC_Swiftcode", "custom_group_id" => $this->customFields->bankGroup['id']));
+			$this->customFields->b_iban				= civicrm_api3('CustomField', 'getsingle', array("name" => "IBAN_nummer", "custom_group_id" => $this->customFields->bankGroup['id']));
+			$this->customFields->b_name				= civicrm_api3('CustomField', 'getsingle', array("name" => "Bank_Name", "custom_group_id" => $this->customFields->bankGroup['id']));
+			$this->customFields->b_city				= civicrm_api3('CustomField', 'getsingle', array("name" => "Bank_City", "custom_group_id" => $this->customFields->bankGroup['id']));
 			// Passport Information
 			$this->customFields->passportGroup		= civicrm_api3('CustomGroup', 'getsingle', array("name" => "Passport_Information"));
-			$this->customFields->pp_firstname		= civicrm_api3('CustomField', 'getsingle', array("name" => "Passport_Name_First_Name_s_", "custom_group_id" => $this->customFields->passportGroup['id']));
+			$this->customFields->pp_firstname		= civicrm_api3('CustomField', 'getsingle', array("name" => "Passport_Name", "custom_group_id" => $this->customFields->passportGroup['id']));
 			$this->customFields->pp_number			= civicrm_api3('CustomField', 'getsingle', array("name" => "Passport_Number", "custom_group_id" => $this->customFields->passportGroup['id']));
-			$this->customFields->pp_expire_date		= civicrm_api3('CustomField', 'getsingle', array("name" => "Passport_Expiry_Date", "custom_group_id" => $this->customFields->passportGroup['id']));
+			$this->customFields->pp_expire_date		= civicrm_api3('CustomField', 'getsingle', array("name" => "Passport_Valid_until", "custom_group_id" => $this->customFields->passportGroup['id']));
 			$this->customFields->pp_nationality		= civicrm_api3('CustomField', 'getsingle', array("name" => "Nationality", "custom_group_id" => $this->customFields->passportGroup['id']));
 			// Medical Information
 			$this->customFields->medicalGroup		= civicrm_api3('CustomGroup', 'getsingle', array("name" => "Medical_Information"));
@@ -63,17 +63,17 @@ class contacts extends baseclass {
 			// Languages
 			$this->customFields->languageGroup		= civicrm_api3('CustomGroup', 'getsingle', array("name" => "Languages"));
 			$this->customFields->language			= civicrm_api3('CustomField', 'getsingle', array("name" => "Language", "custom_group_id" => $this->customFields->languageGroup['id']));
-			$this->customFields->skill_level		= civicrm_api3('CustomField', 'getsingle', array("name" => "Skill_level", "custom_group_id" => $this->customFields->languageGroup['id']));
+			$this->customFields->skill_level		= civicrm_api3('CustomField', 'getsingle', array("name" => "Level", "custom_group_id" => $this->customFields->languageGroup['id']));
 			// Relationship-types
 			$this->relationshipTypes				= new stdClass();
 			$this->relationshipTypes->cc			= civicrm_api3('RelationshipType', 'getsingle', array("name_a_b" => "Case Coordinator is", "name_b_a" => "Case Coordinator"));
 			// Groups
 			$this->groups							= new stdClass();
-			$this->groups->active					= civicrm_api3('Group', 'getsingle', array("name" => "Group_Active_7"));
-			$this->groups->restriction				= civicrm_api3('Group', 'getsingle', array("name" => "Subgroup_restriction_3"));
-			$this->groups->former					= civicrm_api3('Group', 'getsingle', array("name" => "Group_former_4"));
-			$this->groups->candidate				= civicrm_api3('Group', 'getsingle', array("name" => "Group_candidate_5"));
-			$this->groups->magazine					= civicrm_api3('Group', 'getsingle', array("name" => "Group_PUM_Magazine_6"));
+			$this->groups->active					= civicrm_api3('Group', 'getsingle', array("title" => "Group Active"));
+			$this->groups->restriction				= civicrm_api3('Group', 'getsingle', array("title" => "Subgroup restriction"));
+			$this->groups->former					= civicrm_api3('Group', 'getsingle', array("title" => "Group former"));
+			$this->groups->candidate				= civicrm_api3('Group', 'getsingle', array("title" => "Group Candidate"));
+			$this->groups->magazine					= civicrm_api3('Group', 'getsingle', array("title" => "Group PUM Magazine"));
 		} catch (Exception $e) {
 			die ($e);
 		}

@@ -12,12 +12,14 @@ class baseclass {
 		));
 		
 		// Database connector PUM-Database
-		$this->dbAdapter = new mysqli("localhost", "user", "pass", "pum_data");
-		if ($this->dbAdapter->connect_errno) die("Connection with PUM-Database failed!");
-		
+		$this->dbAdapter = new mysqli("SERVER", "USER", "PASS", "DB");
+		if ($this->dbAdapter->connect_errno) die("Connection with PUM-Data-Database failed!");
+		$this->dbAdapter->set_charset("utf8");
+
 		// Database connector CiviCRM Database
-		$this->cdbAdapter = new mysqli("localhost", "user", "pass", "pum_civicrm");
+		$this->cdbAdapter = new mysqli("132.160.150.23", "USER", "PASS", "DB");
 		if ($this->cdbAdapter->connect_errno) die("Connection with PUM-CiviCRM-Database failed");
+		$this->cdbAdapter->set_charset("utf8");
 		
 	}
 	

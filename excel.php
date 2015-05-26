@@ -1,219 +1,166 @@
 <?php
-require_once('./baseclass.php'); // BASECLASS
+require_once('./baseclass.php');
+
 class excel extends baseclass {
 	
-	public $resultSet, $excelRow, $organizationParams, $currentOrganization, $employeeParams; // GLOBALS
+	public $groups, $fields, $tags, $currentRow, $previousRow, $organizationIdentifier, $contactIdentifier;
 	
 	public function __construct() {
-		
-		/* Initialize module */
-		echo "Start module: Excel - ".date("h:i:s")." \r\n";
-		parent::baseclass(); // Fetch dependencies
-		$this->resultSet = $this->edbAdapter->query("SELECT * FROM `contacten`"); // Fetch contacts
+		parent::baseclass();
+		echo "Start of Excel migration at ".date("H:i")."\r\n";
 		$this->fetchCustom();
 		$this->migration();
-		echo "End module: Excel - ".date("h:i:s")." \r\n";
-		
+		echo "End of Excel migration at ".date("H:i")."\r\n";
 	}
 	
-	public function fetchCustom() {
-		
-		/* Fetch all custom fields and data */
-		try {
-			// Subcontact-types
-			$this->contactSubType 						= new stdClass();
-			$this->contactSubType->corporate_relation	= civicrm_api3('ContactType', 'getsingle', array("name" => "Corporate_Relation"));
-			$this->customFields 						= new stdClass();
-			$this->relationships 						= new stdClass();
-			$this->relationships->employee				= civicrm_api3('RelationshipType', 'getsingle', array("name_a_b" => "Employee of", "name_b_a" => "Employer of"));
-		} catch (Exception $e) {
-			die ($e);
-		}
+	private function fetchCustom() {
+		$this->groups 					= new stdClass;
+		$this->groups->magazine 		= civicrm_api3('Group', 'getsingle', array("title" => "PUM magazine"));
+		$this->fields 					= new stdClass;
+		$this->fields->additionalGroup 	= civicrm_api3('CustomGroup', 'getsingle', array("name" => "Additional_Data"));
+		$this->fields->initials			= civicrm_api3('CustomField', 'getsingle', array("name" => "Initials", "custom_group_id" => $this->fields->additionalGroup['id']));
+		$this->tags						= new stdClass;
+		$this->tags->verzendlijst		= civicrm_api3('Tag', 'getsingle', array("name" => "Verzendlijst"));
+	}
 
-	}
-	
-	public function migration() {
-		
-		/* This is where the magic happens! */
-		
-		// Check if we have valid query data
-		if(!$this->resultSet || is_null($this->resultSet)) die("Query failed - Exit script \r\n");
-		
-		// Start loop!
-		while($this->excelRow = $this->resultSet->fetch_assoc()){
-			
-			// Check if we have valid organization data, if so, create organization with contact-sub-type "Corporate Relation"
-			// Requirements to be met is a valid organization name in column "F1"
-			if(strlen($this->excelRow['F1']) > 1) $this->registerOrganization();
-			
-			// Check if we have valid contact data, if so, create contact of type individual
-			// Requirements to bet is a valid first name or initials
-			if(!empty($this->excelRow['F28']) || !empty($this->excelRow['F29'])) $this->registerContact();
-			
+	private function migration() {
+		$resultSet = $this->dbAdapter->query("SELECT * FROM `verzendlijst` ORDER BY `organization_name`, `street_address`");
+		if(!$resultSet) die("Query failure! Terminating application. \r\n"."Exit error: ".$this->dbAdapter->error);
+		if($resultSet->num_rows) {
+			while($this->currentRow = $resultSet->fetch_assoc()) {
+				// Contact only
+				if($this->currentRow['organization_name'] == "nvt") {
+					$this->organizationIdentifier = NULL;
+					$this->registerContact();
+				}
+				// Same organization, different address
+				elseif (
+					trim($this->currentRow['organization_name']) == trim($this->previousRow['organization_name'])
+						AND
+					trim($this->currentRow['street_address']) != trim($this->previousRow['street_address'])
+				) {
+					$this->registerOrganization();
+					$this->registerContact();
+				}
+				// Identical organization, new contact
+				elseif (
+					trim($this->currentRow['organization_name']) == trim($this->previousRow['organization_name'])
+						AND
+					trim($this->currentRow['street_address']) == trim($this->previousRow['street_address'])
+				) {
+					$this->registerContact();
+				}
+				// New organization
+				else {
+					$this->registerOrganization();
+					$this->registerContact();
+				}
+				// Set previous row
+				$this->previousRow = $this->currentRow;
+			}
+		} else {
+			echo "No records were found, prehaps wrong where clause in query? \r\n";
 		}
-		
 	}
 	
 	private function registerOrganization() {
-				
-		$this->organizationParams = array(
-			'organization_name' => utf8_encode($this->excelRow['F1']),
-			'contact_type' 		=> 'organization',
-			'contact_sub_type'	=> $this->contactSubType->corporate_relation['name']
-		);
-		
-		if(!$this->CIVIAPI->Contact->Create($this->organizationParams)) {
-			
-			echo "Saving contact ".$this->excelRow['id']." failed\r\n";
-			echo $this->CIVIAPI->errorMsg()."\r\n";
-			
+		if($this->CIVIAPI->Contact->Create(array(
+			'organization_name' => $this->currentRow['organization_name'],
+			'contact_type' 		=> 'organization'
+		))) {
+			$this->organizationIdentifier = $this->CIVIAPI->lastResult->id;
+			$this->registerAddress($this->organizationIdentifier, "organization");
+			$this->tagContact($this->organizationIdentifier, $this->tags->verzendlijst);
 		} else {
-			
-			// If organization creation was successful, then process address, website and phone (if available)
-			$this->organizationIdentifier 	= $this->CIVIAPI->lastResult->id;
-			if(!empty($this->excelRow['F6']) && !empty($this->excelRow['F7']) && !empty($this->excelRow['F8']) && !empty($this->excelRow['F9']))$this->registerAddress();
-			if(preg_match("@^(http\:\/\/|https\:\/\/)?([a-z0-9][a-z0-9\-]*\.)+[a-z0-9][a-z0-9\-]*$@i", $this->excelRow['F2'])) $this->registerWebsite();
-			if(strlen($this->excelRow['F14']) > 5) $this->registerTelephone();
-			if(strlen($this->excelRow['F15']) > 5) $this->registerEmail();
-			//if(!empty($this->excelRow['F18'])) $this->forgeAccHolderPumRelationship($_contactName)
-			
-		}
-		
-	}
-	
-	private function registerAddress() {
-		
-		$_addressParams = array(
-			'contact_id' 		=> $this->organizationIdentifier,
-			'location_type_id' 	=> 2, // Work
-			'is_primary' 		=> 1, // First address registration will be the primary
-			'street_address' 	=> $this->excelRow['F6'].$this->excelRow['F7'],
-			'postal_code' 		=> $this->excelRow['F8'],
-			'city' 				=> ucfirst(strtolower($this->excelRow['F9'])),
-			'country_id' 		=> 1152
-		);
-		
-		if(!$this->CIVIAPI->Address->Create($_addressParams)) {
-			echo "Saving address for contact ".$this->excelRow['id']." failed\r\n";
+			echo "Failed to register organization ".$this->currentRow['id']."\r\n";
 			echo $this->CIVIAPI->errorMsg()."\r\n";
 		}
-		
-	}
-	
-	private function registerWebsite () {
-	
-		$_websiteParams = array(
-			'contact_id' 		=> $this->organizationIdentifier,
-			'location_type_id' 	=> 2, // Work
-			'url' 				=> $this->excelRow['F2']
-		);
-		
-		if(!$this->CIVIAPI->Website->Create($_websiteParams)) {
-			echo "Saving website for contact ".$this->excelRow['id']." failed\r\n";
-			echo $this->CIVIAPI->errorMsg()."\r\n";
-		}
-	
-	}
-	
-	private function registerTelephone() {
-	
-		$_telephoneParams = array(
-			'contact_id' 		=> $this->organizationIdentifier,
-			'location_type_id' 	=> 2, // Work
-			'phone' 			=> $this->excelRow['F14']
-		);
-		
-		if(!$this->CIVIAPI->Phone->Create($_telephoneParams)) {
-			echo "Saving telephone for contact ".$this->excelRow['id']." failed\r\n";
-			echo $this->CIVIAPI->errorMsg()."\r\n";
-		}
-	
-	}
-	
-	private function registerEmail() {
-	
-		$_emailParams = array(
-			'contact_id' 		=> $this->organizationIdentifier,
-			'location_type_id' 	=> 2, // Work
-			'email' 			=> $this->excelRow['F15']
-		);
-		
-		if(!$this->CIVIAPI->Email->Create($_emailParams)) {
-			echo "Saving e-mail address for contact ".$this->excelRow['id']." failed\r\n";
-			echo $this->CIVIAPI->errorMsg()."\r\n";
-		}
-	
 	}
 	
 	private function registerContact() {
-		
-		$_firstname = (empty($this->excelRow['F29'])) ? $this->excelRow['F28'] : $this->excelRow['F29'];
-		$_gender 	= ($this->excelRow['F25'] == "mevrouw") ? 1 : 2;
-		
-		$this->organizationParams = array(
-			'first_name' 		=> utf8_encode($_firstname),
-			'middle_name' 		=> utf8_encode($this->excelRow['F30']),
-			'last_name' 		=> utf8_encode($this->excelRow['F31']),
-			'contact_type' 		=> 'individual',
-			'gender'			=> $_gender
-		);
-		
-		if($this->CIVIAPI->Contact->Create($this->organizationParams)) {
-			
-			$this->forgeEmployeeRelationship($this->CIVIAPI->lastResult->id);
-			
-		} else {
-		
-			echo "Saving contact ".$this->excelRow['id']." failed\r\n";
-			echo $this->CIVIAPI->errorMsg()."\r\n";
-			
+		if(!empty($this->currentRow['first_name']) OR !empty($this->currentRow['last_name'])) {
+			$gender = ($this->currentRow['gender'] == "heer") ? 1 : 2;
+			$prefix = ($this->currentRow['gender'] == "heer") ? 3 : 1;
+			if($this->CIVIAPI->Contact->Create(array(
+				'prefix_id'									=> $prefix,
+				'first_name' 								=> $this->currentRow['first_name'],
+				'middle_name' 								=> $this->currentRow['middle_name'],
+				'last_name' 								=> $this->currentRow['last_name'],
+				'contact_type' 								=> 'individual',
+				'gender'									=> $gender,
+				'custom_'.$this->fields->initials['id'] 	=> $this->currentRow['initials'],
+				'employer_id'								=> $this->organizationIdentifier
+			))) {
+				$this->contactIdentifier = $this->CIVIAPI->lastResult->id;
+				$this->registerAddress($this->contactIdentifier, 'individual');
+				$this->addToGroup($this->contactIdentifier, $this->groups->magazine);
+				$this->tagContact($this->contactIdentifier, $this->tags->verzendlijst);
+			} else {
+				echo "Failed to register individual ".$this->currentRow['id']."\r\n";
+				echo $this->CIVIAPI->errorMsg()."\r\n";
+			}
 		}
-		
-	}
-
-	private function forgeEmployeeRelationship($_contactID) {
-		
-		$_relationshipParams = array(
-			'contact_id_a' => $_contactID,
-			'contact_id_b' => $this->organizationIdentifier,
-			'relationship_type_id' => $this->relationships->employee['id'],
-			'description' => $this->excelRow['F34']
-		);
-		
-		if(!$this->CIVIAPI->Relationship->Create($_relationshipParams)){
-		
-			echo "Forging relationship-employee for contact ".$this->excelRow['id']." failed\r\n";
-			echo $this->CIVIAPI->errorMsg()."\r\n";
-		
-		}
-		
 	}
 	
-	private function forgeAccHolderPumRelationship($_contactName) {
-		
-		/*
+	private function registerAddress($contactIdentifier, $type) {
 		try {
-		
-			$_contact = civicrm_api3('Contact','getsingle',array());
-			
-		} 
-		
-		$_relationshipParams = array(
-			'contact_id_a' => $_contactID,
-			'contact_id_b' => $this->organizationIdentifier,
-			'relationship_type_id' => $this->relationships->accHolderPum['id']
-		);
-		
-		if(!$this->CIVIAPI->Relationship->Create($_relationshipParams)){
-		
-			echo "Forging relationship-accholderpum for contact ".$this->excelRow['id']." failed\r\n";
-			echo $this->CIVIAPI->errorMsg()."\r\n";
-		
+			if($type == "organization") {
+				civicrm_api3('Address', 'Create', array(
+					'contact_id'		=> $contactIdentifier,
+					'location_type_id'	=> 2,
+					'primary'			=> 1,
+					'street_address' 	=> $this->currentRow['street_address'],
+					'postal_code' 		=> substr($this->currentRow['postcode'], 0 , 12),
+					'city' 				=> $this->currentRow['city'],
+					'country_id'		=> $this->determineCountry($this->currentRow['country'])
+				));
+			} else {
+				civicrm_api3('Address', 'Create', array(
+					'contact_id'		=> $contactIdentifier,
+					'location_type_id'	=> 1,
+					'primary'			=> 1,
+					'street_address' 	=> $this->currentRow['i_street_address'],
+					'postal_code' 		=> substr($this->currentRow['i_postcode'], 0 , 12),
+					'city' 				=> $this->currentRow['i_city'],
+					'country_id'		=> $this->determineCountry($this->currentRow['i_country'])
+				));
+			}
+		} catch(Exception $e) {
+			echo "Failed to register address for contact: ".$contactIdentifier."\r\n";
+			echo $e."\r\n";
 		}
-		*/
+	}
 	
+	private function determineCountry($country) {
+		switch($country) {
+			case "The Netherlands": return 1152; break;
+			case "South Africa": 	return 1196; break;
+			case "Belgium": 		return 1020; break;
+			case "Italy": 			return 1107; break;
+			case "Kenia": 			return 1112; break;
+			default:				echo "Country $country is outside of switch scope\r\n"; break;
+		}
+	}
+	
+	private function addToGroup($contact_id, $group) {
+		try{
+			civicrm_api3('GroupContact', 'create', array("group_id" => $group['id'], "contact_id" => $contact_id));
+		} catch (Exception $e) {
+			echo "Failed to add $contact_id to ".$group['label']." \r\n";
+			echo $e."\r\n";
+		}
+	}
+	
+	private function tagContact($contact_id, $tag) {
+		try{
+			civicrm_api3('EntityTag', 'create', array('entity_table' => 'civicrm_contact', 'entity_id' => $contact_id, 'tag_id' => $tag['id']));
+		} catch (Exception $e) {
+			echo "Failed to tag $contact_id with tag ".$tag['label']." \r\n";
+			echo $e."\r\n";
+		}
 	}
 	
 }
 
 new excel;
+?>

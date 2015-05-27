@@ -17,7 +17,7 @@ class baseclass {
 		$this->dbAdapter->set_charset("utf8");
 
 		// Database connector CiviCRM Database
-		$this->cdbAdapter = new mysqli("132.160.150.23", "USER", "PASS", "DB");
+		$this->cdbAdapter = new mysqli("SERVER", "USER", "PASS", "DB");
 		if ($this->cdbAdapter->connect_errno) die("Connection with PUM-CiviCRM-Database failed");
 		$this->cdbAdapter->set_charset("utf8");
 		
